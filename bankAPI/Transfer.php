@@ -1,8 +1,10 @@
-
 <?php
 namespace BankAPI;
 
 class Transfer {
+    /**
+     * Processes a new transfer.
+     */
     public static function process($data, $db) {
         $token = $data['token'];
         $targetAccountNo = $data['target'];
@@ -35,7 +37,36 @@ class Transfer {
         $targetAccount = Account::getAccount($targetAccountNo, $db);
         $targetAccount->addBalance($transferAmount, $db);
 
+        // Save the transfer in the database
+        self::saveTransfer($accountNo, $targetAccountNo, $transferAmount, $db);
+
         return true;
     }
+
+    /**
+     * Saves a transfer record in the database.
+     */
+    private static function saveTransfer($sourceAccount, $targetAccount, $amount, $db) {
+        $query = "INSERT INTO transfers (source_account, target_account, amount, created_at) VALUES (?, ?, ?, NOW())";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param("ssd", $sourceAccount, $targetAccount, $amount);
+        $stmt->execute();
+    }
+
+    /**
+     * Retrieves the list of transfers for a given account.
+     */
+    public static function getTransfers($accountNo, $db) {
+        $query = "SELECT * FROM transfers WHERE source_account = ? ORDER BY created_at DESC";
+        $stmt = $db->prepare($query);
+        $stmt->bind_param("s", $accountNo);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $transfers = [];
+        while ($row = $result->fetch_assoc()) {
+            $transfers[] = $row;
+        }
+        return $transfers;
+    }
 }
-?>
